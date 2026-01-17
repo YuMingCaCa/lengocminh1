@@ -373,7 +373,7 @@
                             <td>${new Date(item.date).toLocaleDateString('vi-VN')}</td>
                             <td class="text-center">${item.type==='income'?'Thu':'Chi'}</td>
                             <td>${item.content}</td>
-                            <td class="text-right">${new Intl.NumberFormat('vi-VN').format(item.amount)}</td>
+                            <td class="text-right">${item.type==='income'?'+':'-'}${new Intl.NumberFormat('vi-VN').format(item.amount)}</td>
                         `;
                         printBody.appendChild(tr);
                     });
