@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>6D5 Phần Mềm Quản Lý Quỹ Lớp - Online</title>
+    <title>Phần Mềm Quản Lý Quỹ Lớp - Online</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap');
@@ -14,29 +15,23 @@
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* Status Indicator */
         .status-dot { height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; margin-right: 6px; }
         .status-online { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
         .status-syncing { background-color: #3b82f6; animation: pulse 1s infinite; }
         .status-error { background-color: #f59e0b; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        /* Admin only elements */
         .admin-only { display: none !important; }
         body.is-admin .admin-only { display: block !important; }
         body.is-admin .table-cell-admin { display: table-cell !important; }
         .table-cell-admin { display: none !important; }
+        .editing-mode { border: 2px solid #f59e0b !important; background-color: #fffbeb !important; }
 
-        /* --- CẤU HÌNH IN ẤN (A4) --- */
         @media print {
             @page { size: A4; margin: 2cm; }
             body * { visibility: hidden; }
             #printable-area, #printable-area * { visibility: visible; }
-            #printable-area {
-                display: block !important;
-                position: absolute; left: 0; top: 0; width: 100%; height: auto;
-                background: white; color: black; z-index: 9999;
-            }
+            #printable-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; height: auto; background: white; color: black; z-index: 9999; }
             table { width: 100%; border-collapse: collapse; border: 1px solid black; }
             th, td { border: 1px solid black; padding: 8px; text-align: left; font-size: 12pt; }
             th { background-color: #f0f0f0 !important; -webkit-print-color-adjust: exact; }
@@ -54,7 +49,7 @@
                     <i class="fa-solid fa-cloud text-2xl"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold uppercase tracking-wide">Quản Lý Quỹ Lớp 6D5 PTCS Đà Nẵng (Cloud)</h1>
+                    <h1 class="text-xl font-bold uppercase tracking-wide">Quản Lý Quỹ Lớp (Cloud)</h1>
                     <div class="flex items-center text-xs text-blue-100 mt-1" id="connectionStatus">
                         <span class="status-dot"></span> <span id="statusText">Đang tải...</span>
                     </div>
@@ -72,9 +67,7 @@
                         <i class="fa-solid fa-right-from-bracket"></i>
                     </button>
                 </div>
-                
                 <div class="h-8 w-px bg-blue-400 mx-1"></div>
-
                 <button onclick="window.print()" class="bg-white text-blue-700 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow">
                     <i class="fa-solid fa-print"></i> In Báo Cáo
                 </button>
@@ -82,7 +75,7 @@
         </div>
     </div>
 
-    <!-- Login Modal (Custom Hardcoded) -->
+    <!-- Login Modal -->
     <div id="loginModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center no-print backdrop-blur-sm">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100">
             <div class="bg-blue-600 p-4 text-white flex justify-between items-center">
@@ -91,32 +84,33 @@
             </div>
             <form id="loginForm" class="p-6 space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label>
-                    <input type="text" id="loginUser" required class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nhập tên đăng nhập">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="loginEmail" required class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="admin@gmail.com">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
                     <input type="password" id="loginPass" required class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="******">
                 </div>
-                <div class="pt-2">
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded transition">Mở khóa</button>
+                <div class="pt-2 flex gap-2">
+                    <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded transition">Đăng nhập</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Rule Alert (Simplified) -->
+    <!-- Rule Alert -->
     <div id="ruleAlert" class="hidden max-w-6xl mx-auto px-4 mt-4 no-print">
-        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm flex items-start gap-3">
-            <i class="fa-solid fa-triangle-exclamation text-yellow-600 mt-1"></i>
+        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-sm flex items-start gap-3">
+            <i class="fa-solid fa-triangle-exclamation text-red-600 mt-1"></i>
             <div class="flex-1">
-                <h3 class="font-bold text-yellow-800">Cấu hình Firebase</h3>
-                <p class="text-sm text-yellow-700 mt-1">Để mọi người xem được và Admin nhập liệu được, bạn hãy vào <a href="https://console.firebase.google.com/project/qlylaodong-dev/firestore/rules" target="_blank" class="underline font-bold">Firestore Rules</a> và đặt thành:</p>
+                <h3 class="font-bold text-red-800">LỖI: Chưa được cấp quyền ghi dữ liệu!</h3>
+                <p class="text-sm text-red-700 mt-1">Hệ thống phát hiện bạn không thể lưu/xóa. Vui lòng vào <b>Firebase Console</b> > <b>Firestore Database</b> > <b>Rules</b> và sửa thành:</p>
                 <div class="bg-gray-800 text-green-400 p-2 rounded mt-2 text-xs font-mono overflow-x-auto">
-                    allow read, write: if true;
+                    allow read: if true;<br>
+                    allow write: if request.auth != null;
                 </div>
             </div>
-            <button onclick="document.getElementById('ruleAlert').classList.add('hidden')" class="text-yellow-600 hover:text-yellow-800"><i class="fa-solid fa-xmark"></i></button>
+            <button onclick="document.getElementById('ruleAlert').classList.add('hidden')" class="text-red-600 hover:text-red-800"><i class="fa-solid fa-xmark"></i></button>
         </div>
     </div>
 
@@ -146,11 +140,17 @@
             </div>
 
             <div id="content-transactions" class="tab-content active p-6">
-                <!-- Form chỉ hiện khi là Admin -->
                 <div class="admin-only mb-6">
-                    <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-4">
-                        <h4 class="font-bold text-blue-800 text-sm mb-2"><i class="fa-solid fa-pen"></i> Khu vực nhập liệu (Admin)</h4>
+                    <div id="formContainer" class="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-4 transition-all duration-300">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-bold text-blue-800 text-sm flex items-center" id="formTitle">
+                                <i class="fa-solid fa-plus-circle mr-2"></i> Thêm giao dịch mới
+                            </h4>
+                            <button id="cancelEditBtn" onclick="window.cancelEdit()" class="hidden text-xs text-red-600 hover:text-red-800 underline font-semibold">Hủy sửa</button>
+                        </div>
+                        
                         <form id="transactionForm" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                            <input type="hidden" id="inputId">
                             <div class="md:col-span-2">
                                 <label class="block text-xs font-semibold text-gray-500 mb-1">Loại</label>
                                 <select id="inputType" class="w-full p-2 border rounded bg-white"><option value="income">Thu (+)</option><option value="expense">Chi (-)</option></select>
@@ -168,14 +168,14 @@
                                 <input type="number" id="inputAmount" required min="1000" step="1000" class="w-full p-2 border rounded font-bold">
                             </div>
                             <div class="md:col-span-1">
-                                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded h-[42px]"><i class="fa-solid fa-plus"></i></button>
+                                <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded h-[42px] transition-colors"><i class="fa-solid fa-plus"></i></button>
                             </div>
                         </form>
                     </div>
                 </div>
                 
                 <div id="guestMessage" class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 text-center text-sm text-gray-500">
-                    <i class="fa-solid fa-lock mr-1"></i> Chế độ xem dành cho Khách. Đăng nhập Admin để chỉnh sửa.
+                    <i class="fa-solid fa-lock mr-1"></i> Chế độ xem dành cho Khách. Đăng nhập Admin để thêm, sửa, xóa.
                 </div>
 
                 <div class="overflow-x-auto">
@@ -186,7 +186,7 @@
                                 <th class="px-4 py-3">Loại</th>
                                 <th class="px-4 py-3">Nội dung</th>
                                 <th class="px-4 py-3 text-right">Số tiền</th>
-                                <th class="px-4 py-3 text-center no-print table-cell-admin">Xóa</th>
+                                <th class="px-4 py-3 text-center no-print table-cell-admin w-24">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody id="transactionList" class="divide-y divide-gray-200"></tbody>
@@ -247,8 +247,8 @@
     <!-- LOGIC -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, setDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, setDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCET0_R6120tj389v5C62NhSLrBIk2CbIw",
@@ -260,29 +260,11 @@
             measurementId: "G-M2PJEBLMJF"
         };
 
-        // --- INIT STATE ---
-        let initialData = [];
-        let initialInfo = null;
-        try {
-            initialData = JSON.parse(localStorage.getItem('offline_data') || '[]');
-            initialInfo = JSON.parse(localStorage.getItem('offline_info') || '{"className":"Lớp 12A1","semester":"Năm học 2025-2026"}');
-        } catch(e){}
-
-        if (initialData.length === 0) {
-            initialData = [
-                { id: 'sample_1', type: 'income', date: new Date().toISOString().slice(0,10), content: 'Dữ liệu mẫu: Thu quỹ', amount: 5000000 },
-                { id: 'sample_2', type: 'expense', date: new Date().toISOString().slice(0,10), content: 'Dữ liệu mẫu: Mua sắm', amount: 250000 }
-            ];
-        }
-
-        // Check persistent admin state
-        const savedAdmin = localStorage.getItem('is_admin') === 'true';
-
         const appState = {
-            data: initialData,
-            info: initialInfo,
+            data: [], 
+            info: { className: "Lớp...", semester: "..." },
             online: false,
-            isAdmin: savedAdmin // Load from storage
+            isAdmin: false
         };
 
         let db, auth;
@@ -306,6 +288,7 @@
                 guestMsg.classList.remove('hidden');
                 authSec.classList.remove('hidden');
                 adminSec.classList.add('hidden');
+                window.cancelEdit();
             }
             renderApp();
         };
@@ -319,7 +302,7 @@
                 else if (status === 'error') dot.className = 'status-dot status-error';
                 else dot.className = 'status-dot';
             }
-            if (msg.includes("permission") || msg.includes("Missing")) {
+            if ((msg.includes("permission") || msg.includes("Missing")) && appState.isAdmin) {
                 document.getElementById('ruleAlert').classList.remove('hidden');
             }
         };
@@ -327,8 +310,6 @@
         const renderApp = () => {
             try {
                 let tIncome = 0, tExpense = 0;
-                
-                // --- RENDER WEB VIEW ---
                 const tbody = document.getElementById('transactionList');
                 if (tbody) tbody.innerHTML = ''; 
                 
@@ -352,7 +333,12 @@
                             <td class="px-4 py-2"><span class="px-2 py-1 rounded text-xs font-bold ${item.type==='income'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${item.type==='income'?'Thu':'Chi'}</span></td>
                             <td class="px-4 py-2 font-medium">${item.content}</td>
                             <td class="px-4 py-2 text-right font-bold ${item.type==='income'?'text-green-600':'text-red-600'}">${item.type==='income'?'+':'-'}${new Intl.NumberFormat('vi-VN').format(item.amount)} ₫</td>
-                            <td class="px-4 py-2 text-center no-print table-cell-admin"><button onclick="window.appDelete('${item.id}')" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></td>
+                            <td class="px-4 py-2 text-center no-print table-cell-admin">
+                                <div class="flex justify-center gap-2">
+                                    <button onclick="window.appEdit('${item.id}')" class="text-yellow-500 hover:text-yellow-600 p-1" title="Sửa"><i class="fa-solid fa-pen-to-square"></i></button>
+                                    <button onclick="window.appDelete('${item.id}')" class="text-gray-400 hover:text-red-500 p-1" title="Xóa"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </td>
                         `;
                         tbody.appendChild(tr);
                     });
@@ -373,7 +359,6 @@
                 safeSetValue('settingClassName', className);
                 safeSetValue('settingSemester', semester);
 
-                // --- RENDER PRINT VIEW ---
                 const printBody = document.getElementById('printTransactionList');
                 if (printBody) {
                     printBody.innerHTML = '';
@@ -406,39 +391,33 @@
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
+                appState.online = true;
                 
                 try { await enableIndexedDbPersistence(db); } catch(err) { }
 
-                // Sign in everyone as anonymous to access DB
-                await signInAnonymously(auth);
-                updateStatus('online', 'Đã kết nối Cloud');
-                appState.online = true;
+                onAuthStateChanged(auth, (user) => {
+                    if (user && !user.isAnonymous) {
+                        appState.isAdmin = true;
+                        updateStatus('online', 'Đã đăng nhập Admin: ' + user.email);
+                    } else {
+                        appState.isAdmin = false;
+                        if (!user) signInAnonymously(auth).catch(()=>{}); 
+                        updateStatus('online', 'Chế độ xem (Khách)');
+                    }
+                    updateUIForAuth();
+                });
 
-                // SYNC DATA
+                // SYNC DATA (Server is Truth)
                 onSnapshot(query(collection(db, 'transactions')), (snap) => {
                     const cloudData = [];
-                    snap.forEach(d => cloudData.push({id: d.id, ...d.data()}));
+                    snap.forEach(d => {
+                        // QUAN TRỌNG: Lấy ID thật của văn bản trên Firebase (d.id)
+                        // Để đảm bảo xóa đúng cái cần xóa
+                        cloudData.push({ ...d.data(), id: d.id }); 
+                    });
                     
-                    const localData = appState.data;
-                    const unsyncedItems = localData.filter(localItem => 
-                        !cloudData.some(cloudItem => cloudItem.id === localItem.id)
-                        && !localItem.id.toString().startsWith('sample')
-                    );
-
-                    const mergedData = [...cloudData, ...unsyncedItems];
-                    appState.data = mergedData;
-                    localStorage.setItem('offline_data', JSON.stringify(appState.data));
+                    appState.data = cloudData;
                     renderApp();
-
-                    // Only try upload if Admin (Local Check)
-                    if (appState.isAdmin && unsyncedItems.length > 0) {
-                        updateStatus('syncing', `Đang đồng bộ...`);
-                        unsyncedItems.forEach(item => {
-                            setDoc(doc(db, 'transactions', item.id.toString()), item)
-                                .then(() => updateStatus('online', 'Đã đồng bộ'))
-                                .catch(() => updateStatus('error', 'Lỗi quyền ghi (Xem hướng dẫn)'));
-                        });
-                    }
                 }, (err) => {
                     if(err.code === 'permission-denied') updateStatus('error', 'Chưa cấp quyền đọc');
                 });
@@ -446,7 +425,6 @@
                 onSnapshot(doc(db, 'settings', 'classInfo'), (snap) => {
                     if(snap.exists()) {
                         appState.info = snap.data();
-                        localStorage.setItem('offline_info', JSON.stringify(appState.info));
                         renderApp();
                     }
                 });
@@ -459,79 +437,150 @@
         
         window.appLogin = async (e) => {
             e.preventDefault();
-            const user = document.getElementById('loginUser').value;
+            const email = document.getElementById('loginEmail').value;
             const pass = document.getElementById('loginPass').value;
             
-            // Hardcoded Check
-            if(user === 'admin' && pass === 'Minh123456@') {
-                appState.isAdmin = true;
-                localStorage.setItem('is_admin', 'true');
-                updateUIForAuth();
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
                 document.getElementById('loginModal').classList.add('hidden');
                 document.getElementById('loginForm').reset();
-                alert("Xin chào Admin!");
-            } else {
-                alert("Sai tên đăng nhập hoặc mật khẩu!");
+                Swal.fire('Thành công', 'Đăng nhập Admin thành công!', 'success');
+            } catch (err) {
+                Swal.fire('Lỗi đăng nhập', err.message, 'error');
             }
         };
 
         window.appLogout = async () => {
-            appState.isAdmin = false;
-            localStorage.removeItem('is_admin');
-            updateUIForAuth();
-            alert("Đã đăng xuất.");
+            await signOut(auth);
+            await signInAnonymously(auth); 
         };
 
-        window.appAdd = async (e) => {
+        window.appHandleSubmit = async (e) => {
             e.preventDefault();
-            if (!appState.isAdmin) return alert("Bạn phải đăng nhập Admin mới được thêm!");
+            if (!appState.isAdmin) return Swal.fire('Lỗi', 'Bạn phải đăng nhập Admin!', 'warning');
+
+            const idInput = document.getElementById('inputId').value;
+            const isUpdate = !!idInput;
 
             const newItem = {
-                id: Date.now().toString(),
                 type: document.getElementById('inputType').value,
                 date: document.getElementById('inputDate').value,
                 content: document.getElementById('inputContent').value,
                 amount: parseInt(document.getElementById('inputAmount').value)
             };
             
-            appState.data.push(newItem);
-            localStorage.setItem('offline_data', JSON.stringify(appState.data));
-            renderApp();
-            e.target.reset();
-            document.getElementById('inputDate').valueAsDate = new Date();
-
             if(appState.online && db) {
-                try { await setDoc(doc(db, 'transactions', newItem.id), newItem); } 
-                catch(err) { if(err.code==='permission-denied') alert("Lỗi quyền: Server từ chối ghi."); } 
+                try { 
+                    if (isUpdate) {
+                        // Sửa: Dùng setDoc đè lên ID cũ
+                        await setDoc(doc(db, 'transactions', idInput), newItem, { merge: true });
+                    } else {
+                        // Thêm mới: Dùng addDoc để Firebase tự tạo ID chuẩn
+                        await addDoc(collection(db, 'transactions'), newItem);
+                    }
+                    window.cancelEdit();
+                    Swal.fire('Đã lưu', 'Dữ liệu đã được cập nhật', 'success');
+                } 
+                catch(err) { 
+                    if(err.code === 'permission-denied') {
+                        document.getElementById('ruleAlert').classList.remove('hidden');
+                        Swal.fire('Lỗi quyền', 'Không thể lưu. Vui lòng kiểm tra cấu hình Rules!', 'error');
+                    } else {
+                        Swal.fire('Lỗi', err.message, 'error');
+                    }
+                } 
             }
         };
 
-        window.appDelete = async (id) => {
-            if (!appState.isAdmin) return alert("Chỉ Admin mới được xóa!");
-            if(!confirm("Xóa giao dịch này?")) return;
-            appState.data = appState.data.filter(i => i.id !== id);
-            localStorage.setItem('offline_data', JSON.stringify(appState.data));
-            renderApp();
+        window.appEdit = (id) => {
+            const item = appState.data.find(i => i.id === id);
+            if (!item) return;
 
-            if(appState.online && db) {
-                try { await deleteDoc(doc(db, 'transactions', id)); } 
-                catch(err) { }
+            document.getElementById('inputId').value = item.id;
+            document.getElementById('inputType').value = item.type;
+            document.getElementById('inputDate').value = item.date;
+            document.getElementById('inputContent').value = item.content;
+            document.getElementById('inputAmount').value = item.amount;
+
+            document.getElementById('formContainer').classList.add('editing-mode');
+            document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-pen-to-square mr-2"></i> Đang sửa giao dịch';
+            document.getElementById('submitBtn').innerHTML = '<i class="fa-solid fa-save"></i> Cập nhật';
+            document.getElementById('submitBtn').classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            document.getElementById('submitBtn').classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+            
+            document.getElementById('formContainer').scrollIntoView({ behavior: 'smooth' });
+        };
+
+        window.cancelEdit = () => {
+            document.getElementById('transactionForm').reset();
+            document.getElementById('inputId').value = '';
+            document.getElementById('inputDate').valueAsDate = new Date();
+            
+            document.getElementById('formContainer').classList.remove('editing-mode');
+            document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-plus-circle mr-2"></i> Thêm giao dịch mới';
+            document.getElementById('submitBtn').innerHTML = '<i class="fa-solid fa-plus"></i>';
+            document.getElementById('submitBtn').classList.add('bg-blue-600', 'hover:bg-blue-700');
+            document.getElementById('submitBtn').classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+        };
+
+        window.appDelete = async (id) => {
+            if (!appState.isAdmin) return Swal.fire('Lỗi', 'Chỉ Admin mới được xóa!', 'warning');
+            
+            const result = await Swal.fire({
+                title: 'Bạn chắc chứ?',
+                text: "Dữ liệu sẽ bị xóa vĩnh viễn!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Xóa luôn',
+                cancelButtonText: 'Hủy'
+            });
+
+            if (result.isConfirmed) {
+                if(appState.online && db) {
+                    // Xóa cục bộ ngay lập tức để người dùng thấy phản hồi
+                    appState.data = appState.data.filter(i => i.id !== id);
+                    renderApp();
+
+                    try { 
+                        // Xóa trên Server
+                        await deleteDoc(doc(db, 'transactions', id)); 
+                        Swal.fire('Đã xóa!', 'Dữ liệu đã bị xóa.', 'success');
+                    } 
+                    catch(err) { 
+                        // Nếu lỗi, báo lỗi
+                        if(err.code === 'permission-denied') {
+                            document.getElementById('ruleAlert').classList.remove('hidden');
+                            Swal.fire('Lỗi quyền', 'Không thể xóa do Server từ chối. Kiểm tra Rules!', 'error');
+                        } else {
+                            Swal.fire('Lỗi', err.message, 'error');
+                        }
+                    }
+                }
             }
         };
 
         window.appSaveSettings = async () => {
-            if (!appState.isAdmin) return alert("Chỉ Admin mới được sửa cài đặt!");
+            if (!appState.isAdmin) return Swal.fire('Lỗi', 'Chỉ Admin mới được sửa cài đặt!', 'warning');
             const newInfo = {
                 className: document.getElementById('settingClassName').value,
                 semester: document.getElementById('settingSemester').value
             };
-            appState.info = newInfo;
-            localStorage.setItem('offline_info', JSON.stringify(appState.info));
-            renderApp();
             
             if(appState.online && db) {
-                try { await setDoc(doc(db, 'settings', 'classInfo'), newInfo); alert("Đã lưu!"); } 
-                catch(err) { if(err.code==='permission-denied') alert("Lỗi quyền: Server từ chối ghi."); }
+                try { 
+                    await setDoc(doc(db, 'settings', 'classInfo'), newInfo); 
+                    Swal.fire('Đã lưu', 'Thông tin lớp đã cập nhật.', 'success');
+                } 
+                catch(err) { 
+                    if(err.code === 'permission-denied') {
+                        document.getElementById('ruleAlert').classList.remove('hidden');
+                        Swal.fire('Lỗi quyền', 'Không thể lưu. Kiểm tra Rules!', 'error');
+                    }
+                }
             }
         };
 
@@ -549,10 +598,10 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('transactionForm').addEventListener('submit', window.appAdd);
+            document.getElementById('transactionForm').addEventListener('submit', window.appHandleSubmit);
             document.getElementById('loginForm').addEventListener('submit', window.appLogin);
             document.getElementById('inputDate').valueAsDate = new Date();
-            updateUIForAuth(); // Check initial auth state
+            updateUIForAuth(); 
             startFirebase(); 
         });
     </script>
