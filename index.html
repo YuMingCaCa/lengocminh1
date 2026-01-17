@@ -314,7 +314,11 @@
                 if (tbody) tbody.innerHTML = ''; 
                 
                 if (Array.isArray(appState.data)) {
-                    appState.data.sort((a,b) => new Date(b.date) - new Date(a.date));
+                    appState.data.sort((a,b) => {
+                        const dateDiff = new Date(b.date) - new Date(a.date);
+                        if (dateDiff !== 0) return dateDiff; // Khác ngày thì xếp theo ngày
+                        return (b.createdAt || 0) - (a.createdAt || 0); // Cùng ngày thì xếp theo thời gian nhập
+                    });
                 } else { appState.data = []; }
 
                 const emptyState = document.getElementById('emptyState');
@@ -476,6 +480,7 @@
                         await setDoc(doc(db, 'transactions', idInput), newItem, { merge: true });
                     } else {
                         // Thêm mới: Dùng addDoc để Firebase tự tạo ID chuẩn
+                        newItem.createdAt = Date.now(); // Lưu thời gian thực tế lúc bấm nút Thêm
                         await addDoc(collection(db, 'transactions'), newItem);
                     }
                     window.cancelEdit();
