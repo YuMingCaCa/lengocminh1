@@ -1,18 +1,560 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>6D5 Phần Mềm Quản Lý Quỹ Lớp - Online</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #f3f4f6; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Status Indicator */
+        .status-dot { height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        .status-online { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
+        .status-syncing { background-color: #3b82f6; animation: pulse 1s infinite; }
+        .status-error { background-color: #f59e0b; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* Admin only elements */
+        .admin-only { display: none !important; }
+        body.is-admin .admin-only { display: block !important; }
+        body.is-admin .table-cell-admin { display: table-cell !important; }
+        .table-cell-admin { display: none !important; }
+
+        /* --- CẤU HÌNH IN ẤN (A4) --- */
+        @media print {
+            @page { size: A4; margin: 2cm; }
+            body * { visibility: hidden; }
+            #printable-area, #printable-area * { visibility: visible; }
+            #printable-area {
+                display: block !important;
+                position: absolute; left: 0; top: 0; width: 100%; height: auto;
+                background: white; color: black; z-index: 9999;
+            }
+            table { width: 100%; border-collapse: collapse; border: 1px solid black; }
+            th, td { border: 1px solid black; padding: 8px; text-align: left; font-size: 12pt; }
+            th { background-color: #f0f0f0 !important; -webkit-print-color-adjust: exact; }
+            .no-print-in-area { display: none !important; }
+        }
+    </style>
 </head>
-<body>
-    Xin chào thế giới!
-    Xin chào thế giới!
-    Xin chào thế giới!
-    Xin chào thế giới!
-    Xin chào thế giới!
-    Xin chào thế giới!
-    Xin chào thế giới!
-    Xin chào thế giới!
+<body class="text-gray-800">
+
+    <!-- Header -->
+    <div class="bg-blue-600 text-white shadow-lg no-print">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/20 p-2 rounded-lg">
+                    <i class="fa-solid fa-cloud text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold uppercase tracking-wide">Quản Lý Quỹ Lớp 6D5 PTCS Đà Nẵng (Cloud)</h1>
+                    <div class="flex items-center text-xs text-blue-100 mt-1" id="connectionStatus">
+                        <span class="status-dot"></span> <span id="statusText">Đang tải...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-2 items-center">
+                <div id="authSection">
+                    <button onclick="window.showLoginModal()" class="bg-blue-800 hover:bg-blue-900 px-4 py-2 rounded-lg text-sm font-bold transition shadow border border-blue-500">
+                        <i class="fa-solid fa-user-lock"></i> Đăng nhập Admin
+                    </button>
+                </div>
+                <div id="adminSection" class="hidden flex gap-2">
+                    <span class="text-sm flex items-center bg-blue-700 px-3 rounded text-blue-100"><i class="fa-solid fa-user-shield mr-2"></i> Admin</span>
+                    <button onclick="window.appLogout()" class="bg-white/10 hover:bg-white/20 px-3 py-2 rounded text-sm transition" title="Đăng xuất">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+                
+                <div class="h-8 w-px bg-blue-400 mx-1"></div>
+
+                <button onclick="window.print()" class="bg-white text-blue-700 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow">
+                    <i class="fa-solid fa-print"></i> In Báo Cáo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal (Custom Hardcoded) -->
+    <div id="loginModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center no-print backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100">
+            <div class="bg-blue-600 p-4 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg"><i class="fa-solid fa-key"></i> Đăng nhập Quản Trị</h3>
+                <button onclick="document.getElementById('loginModal').classList.add('hidden')" class="hover:text-gray-200"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="loginForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label>
+                    <input type="text" id="loginUser" required class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nhập tên đăng nhập">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+                    <input type="password" id="loginPass" required class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="******">
+                </div>
+                <div class="pt-2">
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded transition">Mở khóa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Rule Alert (Simplified) -->
+    <div id="ruleAlert" class="hidden max-w-6xl mx-auto px-4 mt-4 no-print">
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm flex items-start gap-3">
+            <i class="fa-solid fa-triangle-exclamation text-yellow-600 mt-1"></i>
+            <div class="flex-1">
+                <h3 class="font-bold text-yellow-800">Cấu hình Firebase</h3>
+                <p class="text-sm text-yellow-700 mt-1">Để mọi người xem được và Admin nhập liệu được, bạn hãy vào <a href="https://console.firebase.google.com/project/qlylaodong-dev/firestore/rules" target="_blank" class="underline font-bold">Firestore Rules</a> và đặt thành:</p>
+                <div class="bg-gray-800 text-green-400 p-2 rounded mt-2 text-xs font-mono overflow-x-auto">
+                    allow read, write: if true;
+                </div>
+            </div>
+            <button onclick="document.getElementById('ruleAlert').classList.add('hidden')" class="text-yellow-600 hover:text-yellow-800"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        <!-- Dashboard -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 no-print">
+            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-emerald-500 flex items-center justify-between">
+                <div><p class="text-gray-500 text-sm font-medium uppercase mb-1">Tổng Thu</p><h2 class="text-2xl font-bold text-emerald-600" id="totalIncomeDisplay">0 ₫</h2></div>
+                <div class="bg-emerald-100 text-emerald-600 w-12 h-12 rounded-full flex items-center justify-center text-xl"><i class="fa-solid fa-arrow-trend-up"></i></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-rose-500 flex items-center justify-between">
+                <div><p class="text-gray-500 text-sm font-medium uppercase mb-1">Tổng Chi</p><h2 class="text-2xl font-bold text-rose-600" id="totalExpenseDisplay">0 ₫</h2></div>
+                <div class="bg-rose-100 text-rose-600 w-12 h-12 rounded-full flex items-center justify-center text-xl"><i class="fa-solid fa-arrow-trend-down"></i></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500 flex items-center justify-between">
+                <div><p class="text-gray-500 text-sm font-medium uppercase mb-1">Tồn Quỹ</p><h2 class="text-3xl font-bold text-blue-700" id="balanceDisplay">0 ₫</h2></div>
+                <div class="bg-blue-100 text-blue-600 w-12 h-12 rounded-full flex items-center justify-center text-xl"><i class="fa-solid fa-wallet"></i></div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 no-print">
+            <div class="flex border-b border-gray-200 bg-gray-50 no-print">
+                <button onclick="window.appSwitchTab('transactions')" id="tab-transactions" class="flex-1 py-4 text-center font-medium text-blue-600 border-b-2 border-blue-600 bg-white">Sổ Ghi Chép</button>
+                <button onclick="window.appSwitchTab('report')" id="tab-report" class="flex-1 py-4 text-center font-medium text-gray-500 hover:text-blue-600">Báo Cáo</button>
+                <button onclick="window.appSwitchTab('settings')" id="tab-settings" class="flex-1 py-4 text-center font-medium text-gray-500 hover:text-blue-600 admin-only">Cài Đặt</button>
+            </div>
+
+            <div id="content-transactions" class="tab-content active p-6">
+                <!-- Form chỉ hiện khi là Admin -->
+                <div class="admin-only mb-6">
+                    <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-4">
+                        <h4 class="font-bold text-blue-800 text-sm mb-2"><i class="fa-solid fa-pen"></i> Khu vực nhập liệu (Admin)</h4>
+                        <form id="transactionForm" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">Loại</label>
+                                <select id="inputType" class="w-full p-2 border rounded bg-white"><option value="income">Thu (+)</option><option value="expense">Chi (-)</option></select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">Ngày</label>
+                                <input type="date" id="inputDate" required class="w-full p-2 border rounded">
+                            </div>
+                            <div class="md:col-span-4">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">Nội dung</label>
+                                <input type="text" id="inputContent" required placeholder="VD: Thu quỹ..." class="w-full p-2 border rounded">
+                            </div>
+                            <div class="md:col-span-3">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">Số tiền</label>
+                                <input type="number" id="inputAmount" required min="1000" step="1000" class="w-full p-2 border rounded font-bold">
+                            </div>
+                            <div class="md:col-span-1">
+                                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded h-[42px]"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <div id="guestMessage" class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 text-center text-sm text-gray-500">
+                    <i class="fa-solid fa-lock mr-1"></i> Chế độ xem dành cho Khách. Đăng nhập Admin để chỉnh sửa.
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left border-collapse">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-3">Ngày</th>
+                                <th class="px-4 py-3">Loại</th>
+                                <th class="px-4 py-3">Nội dung</th>
+                                <th class="px-4 py-3 text-right">Số tiền</th>
+                                <th class="px-4 py-3 text-center no-print table-cell-admin">Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionList" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                    <div id="emptyState" class="hidden text-center py-12 text-gray-400"><p>Chưa có dữ liệu.</p></div>
+                </div>
+            </div>
+
+            <div id="content-report" class="tab-content p-8">
+                <div class="text-center text-gray-500">
+                    <i class="fa-solid fa-print text-4xl mb-2"></i>
+                    <p>Bấm nút <b>"In Báo Cáo"</b> ở góc trên bên phải để xem bản in chi tiết.</p>
+                </div>
+            </div>
+
+            <div id="content-settings" class="tab-content p-6">
+                <div class="max-w-md mx-auto space-y-4">
+                    <h3 class="font-bold">Thông tin chung</h3>
+                    <input type="text" id="settingClassName" class="w-full p-2 border rounded" placeholder="Tên lớp">
+                    <input type="text" id="settingSemester" class="w-full p-2 border rounded" placeholder="Niên khóa">
+                    <button onclick="window.appSaveSettings()" class="bg-blue-600 text-white w-full py-2 rounded">Lưu thông tin</button>
+                    <hr>
+                    <p class="text-xs text-gray-500">ID: qlylaodong-dev</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRINT AREA -->
+    <div id="printable-area" class="hidden">
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold uppercase">BÁO CÁO CÔNG KHAI TÀI CHÍNH</h1>
+            <p class="text-lg font-bold" id="printClassName">...</p>
+            <p class="italic" id="printSemester">...</p>
+            <p class="text-sm italic mt-2">Ngày lập báo cáo: <span id="printDate">...</span></p>
+        </div>
+        <div class="mb-8">
+            <h3 class="font-bold border-b-2 border-black mb-2 uppercase">I. Tổng hợp chung</h3>
+            <table class="w-full mb-4">
+                <tr><td class="font-bold w-1/2">1. Tổng thu:</td><td class="text-right font-bold" id="printTotalIncome">0 ₫</td></tr>
+                <tr><td class="font-bold">2. Tổng chi:</td><td class="text-right font-bold" id="printTotalExpense">0 ₫</td></tr>
+                <tr><td class="font-bold text-lg bg-gray-100">3. TỒN QUỸ CUỐI KỲ:</td><td class="text-right font-bold text-lg bg-gray-100" id="printBalance">0 ₫</td></tr>
+            </table>
+        </div>
+        <div class="mb-8">
+            <h3 class="font-bold border-b-2 border-black mb-2 uppercase">II. Chi tiết</h3>
+            <table class="w-full text-sm">
+                <thead><tr class="bg-gray-100"><th class="w-10 text-center">STT</th><th class="w-24">Ngày</th><th class="w-20 text-center">Loại</th><th>Nội dung</th><th class="w-32 text-right">Số tiền</th></tr></thead>
+                <tbody id="printTransactionList"></tbody>
+            </table>
+        </div>
+        <div class="flex justify-between text-center mt-12 px-8">
+            <div><p class="font-bold">Người lập bảng</p><p class="italic text-sm">(Ký, họ tên)</p></div>
+            <div><p class="font-bold">Giáo viên chủ nhiệm</p><p class="italic text-sm">(Ký, họ tên)</p></div>
+        </div>
+    </div>
+
+    <!-- LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, setDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCET0_R6120tj389v5C62NhSLrBIk2CbIw",
+            authDomain: "qlylaodong-dev.firebaseapp.com",
+            projectId: "qlylaodong-dev",
+            storageBucket: "qlylaodong-dev.firebasestorage.app",
+            messagingSenderId: "789374516793",
+            appId: "1:789374516793:web:29fb38ad0913f8b62e17e8",
+            measurementId: "G-M2PJEBLMJF"
+        };
+
+        // --- INIT STATE ---
+        let initialData = [];
+        let initialInfo = null;
+        try {
+            initialData = JSON.parse(localStorage.getItem('offline_data') || '[]');
+            initialInfo = JSON.parse(localStorage.getItem('offline_info') || '{"className":"Lớp 12A1","semester":"Năm học 2025-2026"}');
+        } catch(e){}
+
+        if (initialData.length === 0) {
+            initialData = [
+                { id: 'sample_1', type: 'income', date: new Date().toISOString().slice(0,10), content: 'Dữ liệu mẫu: Thu quỹ', amount: 5000000 },
+                { id: 'sample_2', type: 'expense', date: new Date().toISOString().slice(0,10), content: 'Dữ liệu mẫu: Mua sắm', amount: 250000 }
+            ];
+        }
+
+        // Check persistent admin state
+        const savedAdmin = localStorage.getItem('is_admin') === 'true';
+
+        const appState = {
+            data: initialData,
+            info: initialInfo,
+            online: false,
+            isAdmin: savedAdmin // Load from storage
+        };
+
+        let db, auth;
+        const safeSetText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+        const safeSetValue = (id, val) => { const el = document.getElementById(id); if (el && document.activeElement !== el) el.value = val; };
+
+        // --- UI HELPERS ---
+        const updateUIForAuth = () => {
+            const body = document.body;
+            const guestMsg = document.getElementById('guestMessage');
+            const authSec = document.getElementById('authSection');
+            const adminSec = document.getElementById('adminSection');
+
+            if (appState.isAdmin) {
+                body.classList.add('is-admin');
+                guestMsg.classList.add('hidden');
+                authSec.classList.add('hidden');
+                adminSec.classList.remove('hidden');
+            } else {
+                body.classList.remove('is-admin');
+                guestMsg.classList.remove('hidden');
+                authSec.classList.remove('hidden');
+                adminSec.classList.add('hidden');
+            }
+            renderApp();
+        };
+
+        const updateStatus = (status, msg) => {
+            const dot = document.querySelector('.status-dot');
+            safeSetText('statusText', msg); 
+            if (dot) {
+                if (status === 'online') dot.className = 'status-dot status-online';
+                else if (status === 'syncing') dot.className = 'status-dot status-syncing';
+                else if (status === 'error') dot.className = 'status-dot status-error';
+                else dot.className = 'status-dot';
+            }
+            if (msg.includes("permission") || msg.includes("Missing")) {
+                document.getElementById('ruleAlert').classList.remove('hidden');
+            }
+        };
+
+        const renderApp = () => {
+            try {
+                let tIncome = 0, tExpense = 0;
+                
+                // --- RENDER WEB VIEW ---
+                const tbody = document.getElementById('transactionList');
+                if (tbody) tbody.innerHTML = ''; 
+                
+                if (Array.isArray(appState.data)) {
+                    appState.data.sort((a,b) => new Date(b.date) - new Date(a.date));
+                } else { appState.data = []; }
+
+                const emptyState = document.getElementById('emptyState');
+                if (emptyState) {
+                    if(appState.data.length === 0) emptyState.classList.remove('hidden');
+                    else emptyState.classList.add('hidden');
+                }
+
+                if (tbody) {
+                    appState.data.forEach(item => {
+                        if(item.type === 'income') tIncome += item.amount; else tExpense += item.amount;
+                        const tr = document.createElement('tr');
+                        tr.className = "bg-white border-b hover:bg-gray-50";
+                        tr.innerHTML = `
+                            <td class="px-4 py-2 text-gray-600 whitespace-nowrap">${new Date(item.date).toLocaleDateString('vi-VN')}</td>
+                            <td class="px-4 py-2"><span class="px-2 py-1 rounded text-xs font-bold ${item.type==='income'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${item.type==='income'?'Thu':'Chi'}</span></td>
+                            <td class="px-4 py-2 font-medium">${item.content}</td>
+                            <td class="px-4 py-2 text-right font-bold ${item.type==='income'?'text-green-600':'text-red-600'}">${item.type==='income'?'+':'-'}${new Intl.NumberFormat('vi-VN').format(item.amount)} ₫</td>
+                            <td class="px-4 py-2 text-center no-print table-cell-admin"><button onclick="window.appDelete('${item.id}')" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+
+                const bal = tIncome - tExpense;
+                const balFormatted = new Intl.NumberFormat('vi-VN').format(bal) + ' ₫';
+                
+                safeSetText('totalIncomeDisplay', new Intl.NumberFormat('vi-VN').format(tIncome) + ' ₫');
+                safeSetText('totalExpenseDisplay', new Intl.NumberFormat('vi-VN').format(tExpense) + ' ₫');
+                safeSetText('balanceDisplay', balFormatted);
+                const balEl = document.getElementById('balanceDisplay');
+                if (balEl) balEl.className = `text-3xl font-bold ${bal<0?'text-red-600':'text-blue-700'}`;
+                
+                const className = appState.info.className || '';
+                const semester = appState.info.semester || '';
+                safeSetText('classInfoDisplay', className);
+                safeSetValue('settingClassName', className);
+                safeSetValue('settingSemester', semester);
+
+                // --- RENDER PRINT VIEW ---
+                const printBody = document.getElementById('printTransactionList');
+                if (printBody) {
+                    printBody.innerHTML = '';
+                    appState.data.forEach((item, index) => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td class="text-center">${index + 1}</td>
+                            <td>${new Date(item.date).toLocaleDateString('vi-VN')}</td>
+                            <td class="text-center">${item.type==='income'?'Thu':'Chi'}</td>
+                            <td>${item.content}</td>
+                            <td class="text-right">${new Intl.NumberFormat('vi-VN').format(item.amount)}</td>
+                        `;
+                        printBody.appendChild(tr);
+                    });
+                }
+                
+                safeSetText('printClassName', className);
+                safeSetText('printSemester', semester);
+                safeSetText('printDate', new Date().toLocaleDateString('vi-VN'));
+                safeSetText('printTotalIncome', new Intl.NumberFormat('vi-VN').format(tIncome) + ' ₫');
+                safeSetText('printTotalExpense', new Intl.NumberFormat('vi-VN').format(tExpense) + ' ₫');
+                safeSetText('printBalance', balFormatted);
+
+            } catch (err) { console.error(err); }
+        };
+
+        // --- FIREBASE LOGIC ---
+        const startFirebase = async () => {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                try { await enableIndexedDbPersistence(db); } catch(err) { }
+
+                // Sign in everyone as anonymous to access DB
+                await signInAnonymously(auth);
+                updateStatus('online', 'Đã kết nối Cloud');
+                appState.online = true;
+
+                // SYNC DATA
+                onSnapshot(query(collection(db, 'transactions')), (snap) => {
+                    const cloudData = [];
+                    snap.forEach(d => cloudData.push({id: d.id, ...d.data()}));
+                    
+                    const localData = appState.data;
+                    const unsyncedItems = localData.filter(localItem => 
+                        !cloudData.some(cloudItem => cloudItem.id === localItem.id)
+                        && !localItem.id.toString().startsWith('sample')
+                    );
+
+                    const mergedData = [...cloudData, ...unsyncedItems];
+                    appState.data = mergedData;
+                    localStorage.setItem('offline_data', JSON.stringify(appState.data));
+                    renderApp();
+
+                    // Only try upload if Admin (Local Check)
+                    if (appState.isAdmin && unsyncedItems.length > 0) {
+                        updateStatus('syncing', `Đang đồng bộ...`);
+                        unsyncedItems.forEach(item => {
+                            setDoc(doc(db, 'transactions', item.id.toString()), item)
+                                .then(() => updateStatus('online', 'Đã đồng bộ'))
+                                .catch(() => updateStatus('error', 'Lỗi quyền ghi (Xem hướng dẫn)'));
+                        });
+                    }
+                }, (err) => {
+                    if(err.code === 'permission-denied') updateStatus('error', 'Chưa cấp quyền đọc');
+                });
+
+                onSnapshot(doc(db, 'settings', 'classInfo'), (snap) => {
+                    if(snap.exists()) {
+                        appState.info = snap.data();
+                        localStorage.setItem('offline_info', JSON.stringify(appState.info));
+                        renderApp();
+                    }
+                });
+
+            } catch (err) { updateStatus('error', 'Lỗi kết nối mạng'); }
+        };
+
+        // --- ACTIONS ---
+        window.showLoginModal = () => document.getElementById('loginModal').classList.remove('hidden');
+        
+        window.appLogin = async (e) => {
+            e.preventDefault();
+            const user = document.getElementById('loginUser').value;
+            const pass = document.getElementById('loginPass').value;
+            
+            // Hardcoded Check
+            if(user === 'admin' && pass === 'Minh123456@') {
+                appState.isAdmin = true;
+                localStorage.setItem('is_admin', 'true');
+                updateUIForAuth();
+                document.getElementById('loginModal').classList.add('hidden');
+                document.getElementById('loginForm').reset();
+                alert("Xin chào Admin!");
+            } else {
+                alert("Sai tên đăng nhập hoặc mật khẩu!");
+            }
+        };
+
+        window.appLogout = async () => {
+            appState.isAdmin = false;
+            localStorage.removeItem('is_admin');
+            updateUIForAuth();
+            alert("Đã đăng xuất.");
+        };
+
+        window.appAdd = async (e) => {
+            e.preventDefault();
+            if (!appState.isAdmin) return alert("Bạn phải đăng nhập Admin mới được thêm!");
+
+            const newItem = {
+                id: Date.now().toString(),
+                type: document.getElementById('inputType').value,
+                date: document.getElementById('inputDate').value,
+                content: document.getElementById('inputContent').value,
+                amount: parseInt(document.getElementById('inputAmount').value)
+            };
+            
+            appState.data.push(newItem);
+            localStorage.setItem('offline_data', JSON.stringify(appState.data));
+            renderApp();
+            e.target.reset();
+            document.getElementById('inputDate').valueAsDate = new Date();
+
+            if(appState.online && db) {
+                try { await setDoc(doc(db, 'transactions', newItem.id), newItem); } 
+                catch(err) { if(err.code==='permission-denied') alert("Lỗi quyền: Server từ chối ghi."); } 
+            }
+        };
+
+        window.appDelete = async (id) => {
+            if (!appState.isAdmin) return alert("Chỉ Admin mới được xóa!");
+            if(!confirm("Xóa giao dịch này?")) return;
+            appState.data = appState.data.filter(i => i.id !== id);
+            localStorage.setItem('offline_data', JSON.stringify(appState.data));
+            renderApp();
+
+            if(appState.online && db) {
+                try { await deleteDoc(doc(db, 'transactions', id)); } 
+                catch(err) { }
+            }
+        };
+
+        window.appSaveSettings = async () => {
+            if (!appState.isAdmin) return alert("Chỉ Admin mới được sửa cài đặt!");
+            const newInfo = {
+                className: document.getElementById('settingClassName').value,
+                semester: document.getElementById('settingSemester').value
+            };
+            appState.info = newInfo;
+            localStorage.setItem('offline_info', JSON.stringify(appState.info));
+            renderApp();
+            
+            if(appState.online && db) {
+                try { await setDoc(doc(db, 'settings', 'classInfo'), newInfo); alert("Đã lưu!"); } 
+                catch(err) { if(err.code==='permission-denied') alert("Lỗi quyền: Server từ chối ghi."); }
+            }
+        };
+
+        window.appSwitchTab = (tab) => {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById('content-'+tab).classList.add('active');
+        };
+
+        window.appExportCSV = () => {
+            let csv = "ID,Type,Date,Content,Amount\n" + appState.data.map(i => `${i.id},${i.type},${i.date},"${i.content}",${i.amount}`).join("\n");
+            const link = document.createElement("a");
+            link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+            link.download = "data.csv";
+            link.click();
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('transactionForm').addEventListener('submit', window.appAdd);
+            document.getElementById('loginForm').addEventListener('submit', window.appLogin);
+            document.getElementById('inputDate').valueAsDate = new Date();
+            updateUIForAuth(); // Check initial auth state
+            startFirebase(); 
+        });
+    </script>
 </body>
 </html>
